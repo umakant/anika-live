@@ -8,11 +8,11 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/apps/anika-live
 Environment=NODE_ENV=production
-Environment=PORT=3000
+Environment=PORT=3010
 Environment=HOSTNAME=0.0.0.0
 Environment=LIVE_DATA_ROOT=/var/www/apps/anika-live/live-data
 EnvironmentFile=/var/www/apps/anika-live/.env
-ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -p 3000
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -p 3010
 Restart=always
 RestartSec=5
 StandardOutput=journal

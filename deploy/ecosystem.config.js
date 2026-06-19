@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "anika-live-studio",
       script: "node_modules/next/dist/bin/next",
-      args: "start -p 3000",
+      args: "start -p 3010",
       cwd: "/var/www/apps/anika-live",
       instances: 1,
       exec_mode: "fork",
@@ -11,7 +11,7 @@ module.exports = {
       max_restarts: 10,
       env: {
         NODE_ENV: "production",
-        PORT: 3000,
+        PORT: 3010,
         HOSTNAME: "0.0.0.0",
         LIVE_DATA_ROOT: "/var/www/apps/anika-live/live-data",
       },
