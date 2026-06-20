@@ -132,15 +132,21 @@ export async function uploadVideoToCloudinary(
 ): Promise<CloudinaryUploadResult> {
   ensureConfigured();
 
+  const uploadPreset = env("CLOUDINARY_UPLOAD_PRESET");
+  const options: Record<string, string | boolean> = {
+    resource_type: "video",
+    folder: FOLDER,
+    public_id: videoId,
+    overwrite: true,
+    context: `original_name=${originalName}`,
+  };
+  if (uploadPreset) {
+    options.upload_preset = uploadPreset;
+  }
+
   const result = await new Promise<UploadApiResponse>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: "video",
-        folder: FOLDER,
-        public_id: videoId,
-        overwrite: true,
-        context: `original_name=${originalName}`,
-      },
+      options,
       (error, uploadResult) => {
         if (error) reject(error);
         else if (uploadResult) resolve(uploadResult);
