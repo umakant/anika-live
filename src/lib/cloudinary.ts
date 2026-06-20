@@ -1,5 +1,7 @@
 import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 import fs from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import { v4 as uuidv4 } from "uuid";
 
 function env(name: string): string {
@@ -54,16 +56,27 @@ function ensureConfigured(): CloudinaryCredentials {
   }
 
   if (!configured) {
-    cloudinary.config({
-      cloud_name: credentials.cloudName,
-      api_key: credentials.apiKey,
-      api_secret: credentials.apiSecret,
-      secure: true,
-    });
+    if (env("CLOUDINARY_URL")) {
+      cloudinary.config({ cloudinary_url: env("CLOUDINARY_URL"), secure: true });
+    } else {
+      cloudinary.config({
+        cloud_name: credentials.cloudName,
+        api_key: credentials.apiKey,
+        api_secret: credentials.apiSecret,
+        secure: true,
+      });
+    }
     configured = true;
   }
 
   return credentials;
+}
+
+export function formatCloudinaryError(err: unknown): string {
+  if (err && typeof err === "object" && "message" in err) {
+    return String((err as { message: string }).message);
+  }
+  return err instanceof Error ? err.message : "Upload failed";
 }
 
 export interface CloudinaryUploadResult {
@@ -132,37 +145,32 @@ export async function uploadVideoToCloudinary(
 ): Promise<CloudinaryUploadResult> {
   ensureConfigured();
 
-  const uploadPreset = env("CLOUDINARY_UPLOAD_PRESET");
-  const options: Record<string, string | boolean> = {
-    resource_type: "video",
-    folder: FOLDER,
-    public_id: videoId,
-    overwrite: true,
-    context: `original_name=${originalName}`,
-  };
-  if (uploadPreset) {
-    options.upload_preset = uploadPreset;
+  const tmpPath = join(tmpdir(), `${videoId}-${Date.now()}.mp4`);
+  fs.writeFileSync(tmpPath, buffer);
+
+  try {
+    const result = await cloudinary.uploader.upload(tmpPath, {
+      resource_type: "video",
+      folder: FOLDER,
+      public_id: videoId,
+      overwrite: true,
+      context: `original_name=${encodeURIComponent(originalName)}`,
+    });
+
+    return {
+      publicId: result.public_id,
+      secureUrl: result.secure_url,
+      duration: result.duration || 0,
+      bytes: result.bytes || buffer.length,
+      format: result.format || "mp4",
+    };
+  } finally {
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      // ignore temp cleanup errors
+    }
   }
-
-  const result = await new Promise<UploadApiResponse>((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      options,
-      (error, uploadResult) => {
-        if (error) reject(error);
-        else if (uploadResult) resolve(uploadResult);
-        else reject(new Error("Cloudinary upload returned no result"));
-      }
-    );
-    stream.end(buffer);
-  });
-
-  return {
-    publicId: result.public_id,
-    secureUrl: result.secure_url,
-    duration: result.duration || 0,
-    bytes: result.bytes || buffer.length,
-    format: result.format || "mp4",
-  };
 }
 
 export async function deleteVideoFromCloudinary(publicId: string): Promise<void> {

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { uploadVideoToCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary";
+import {
+  uploadVideoToCloudinary,
+  isCloudinaryConfigured,
+  formatCloudinaryError,
+} from "@/lib/cloudinary";
 import { addVideo, getVideos } from "@/lib/storage";
 import type { VideoRecord } from "@/lib/types";
 
-export const maxDuration = 300;
+export const maxDuration = 600;
 
 export async function GET() {
   const videos = getVideos().sort(
@@ -19,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Cloudinary is not configured. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your .env file.",
+            "Cloudinary is not configured. Set CLOUDINARY_URL in .env (see .env.example).",
         },
         { status: 500 }
       );
@@ -38,6 +42,14 @@ export async function POST(request: NextRequest) {
 
     const id = uuidv4();
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    if (buffer.length === 0) {
+      return NextResponse.json(
+        { error: "Upload failed: empty file. If the video is large, check Nginx client_max_body_size." },
+        { status: 400 }
+      );
+    }
+
     const uploaded = await uploadVideoToCloudinary(buffer, id, file.name);
 
     const record: VideoRecord = {
@@ -55,7 +67,8 @@ export async function POST(request: NextRequest) {
     addVideo(record);
     return NextResponse.json({ video: record });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Upload failed";
+    console.error("Video upload error:", err);
+    const message = formatCloudinaryError(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
