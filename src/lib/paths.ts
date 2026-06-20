@@ -29,6 +29,10 @@ export const paths = {
     process.env.DATA_DIR || path.join(root, "data"),
     "stream-logs.txt"
   ),
+  playlistSaveProgressJson: path.join(
+    process.env.DATA_DIR || path.join(root, "data"),
+    "playlist-save-progress.json"
+  ),
 };
 
 export function ensureDirectories(): void {

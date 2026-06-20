@@ -35,6 +35,15 @@ export interface StreamState {
   managedByApp: boolean;
 }
 
+export interface PlaylistSaveProgress {
+  active: boolean;
+  current: number;
+  total: number;
+  step: "download" | "normalize" | "write" | "done" | "idle";
+  videoName: string;
+  updatedAt: string;
+}
+
 export interface SystemStats {
   cpuLoad: number[];
   memoryUsedMb: number;

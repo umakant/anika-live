@@ -106,8 +106,30 @@ export function PlaylistBuilder() {
 
   async function savePlaylist() {
     setSaving(true);
-    setMessage(null);
+    setMessage("Starting playlist save...");
     setError(null);
+
+    const progressInterval = window.setInterval(async () => {
+      try {
+        const res = await fetch("/api/playlist/save/progress");
+        if (!res.ok) return;
+        const data = await res.json();
+        const p = data.progress;
+        if (!p?.active) return;
+        const step =
+          p.step === "normalize"
+            ? "Normalizing"
+            : p.step === "download"
+              ? "Preparing"
+              : p.step === "write"
+                ? "Writing playlist"
+                : "Processing";
+        setMessage(`${step} video ${p.current} of ${p.total}${p.videoName ? `: ${p.videoName}` : ""}...`);
+      } catch {
+        // ignore poll errors
+      }
+    }, 2000);
+
     try {
       const res = await fetch("/api/playlist/save", {
         method: "PUT",
@@ -122,7 +144,9 @@ export function PlaylistBuilder() {
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
+      setMessage(null);
     } finally {
+      window.clearInterval(progressInterval);
       setSaving(false);
     }
   }
@@ -163,8 +187,8 @@ export function PlaylistBuilder() {
         </div>
 
         <p className="mb-3 text-xs text-slate-400">
-          Saving downloads videos from Cloudinary, normalizes them to 1080x1920, 30fps, H.264/AAC,
-          and writes playlist.txt for FFmpeg.
+          First save downloads each video from Cloudinary and normalizes it (about 1–3 min per
+          video). Re-saving the same playlist is much faster. Keep this tab open until finished.
         </p>
 
         {message && (

@@ -60,6 +60,8 @@ export async function normalizeVideo(
   ensureDirectories();
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 
+  const preset = process.env.FFMPEG_PRESET || "veryfast";
+
   const args = [
     "-y",
     "-i",
@@ -69,7 +71,9 @@ export async function normalizeVideo(
     "-c:v",
     "libx264",
     "-preset",
-    "medium",
+    preset,
+    "-threads",
+    "0",
     "-pix_fmt",
     "yuv420p",
     "-r",
@@ -80,6 +84,8 @@ export async function normalizeVideo(
     "128k",
     "-ar",
     "44100",
+    "-movflags",
+    "+faststart",
     outputPath,
   ];
 
@@ -130,13 +136,15 @@ export async function normalizeVideoRecord(
   video: VideoRecord,
   onProgress?: (line: string) => void
 ): Promise<VideoRecord> {
-  const inputPath = await ensureLocalVideoSource(video);
   const normalizedFilename = `${video.id}.mp4`;
   const outputPath = path.join(paths.processed, normalizedFilename);
 
-  if (!fs.existsSync(outputPath)) {
-    await normalizeVideo(inputPath, outputPath, onProgress);
+  if (fs.existsSync(outputPath)) {
+    return { ...video, normalizedFilename };
   }
+
+  const inputPath = await ensureLocalVideoSource(video);
+  await normalizeVideo(inputPath, outputPath, onProgress);
 
   return { ...video, normalizedFilename };
 }

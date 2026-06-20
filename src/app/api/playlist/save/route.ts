@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
 import path from "path";
 import {
   savePlaylist,
   getVideos,
   saveVideos,
+  savePlaylistSaveProgress,
 } from "@/lib/storage";
 import { normalizeVideoRecord, writePlaylistFile, formatFfmpegError } from "@/lib/ffmpeg";
 import { paths } from "@/lib/paths";
@@ -28,16 +30,48 @@ export async function PUT(request: NextRequest) {
     const normalizedPaths: string[] = [];
     const updatedVideos = [...allVideos];
 
-    for (const id of selected) {
+    savePlaylistSaveProgress({
+      active: true,
+      current: 0,
+      total: selected.length,
+      step: "download",
+      videoName: "",
+      updatedAt: new Date().toISOString(),
+    });
+
+    for (let i = 0; i < selected.length; i++) {
+      const id = selected[i];
       const index = updatedVideos.findIndex((v) => v.id === id);
       if (index === -1) continue;
 
-      const normalized = await normalizeVideoRecord(updatedVideos[index]);
+      const video = updatedVideos[index];
+      const processedPath = path.join(paths.processed, `${video.id}.mp4`);
+      const needsNormalize = !fs.existsSync(processedPath);
+
+      savePlaylistSaveProgress({
+        active: true,
+        current: i + 1,
+        total: selected.length,
+        step: needsNormalize ? "normalize" : "download",
+        videoName: video.originalName,
+        updatedAt: new Date().toISOString(),
+      });
+
+      const normalized = await normalizeVideoRecord(video);
       updatedVideos[index] = normalized;
       normalizedPaths.push(
         path.join(paths.processed, normalized.normalizedFilename || `${id}.mp4`)
       );
     }
+
+    savePlaylistSaveProgress({
+      active: true,
+      current: selected.length,
+      total: selected.length,
+      step: "write",
+      videoName: "",
+      updatedAt: new Date().toISOString(),
+    });
 
     saveVideos(updatedVideos);
     writePlaylistFile(normalizedPaths);
@@ -48,12 +82,29 @@ export async function PUT(request: NextRequest) {
     };
     savePlaylist(playlist);
 
+    savePlaylistSaveProgress({
+      active: false,
+      current: selected.length,
+      total: selected.length,
+      step: "done",
+      videoName: "",
+      updatedAt: new Date().toISOString(),
+    });
+
     return NextResponse.json({
       playlist,
       playlistFile: paths.playlistFile,
       normalizedCount: normalizedPaths.length,
     });
   } catch (err) {
+    savePlaylistSaveProgress({
+      active: false,
+      current: 0,
+      total: 0,
+      step: "idle",
+      videoName: "",
+      updatedAt: new Date().toISOString(),
+    });
     const message = formatFfmpegError(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }

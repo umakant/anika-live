@@ -1,6 +1,6 @@
 import fs from "fs";
 import { paths, ensureDirectories } from "./paths";
-import type { VideoRecord, PlaylistData, StreamSettings, StreamState } from "./types";
+import type { VideoRecord, PlaylistData, StreamSettings, StreamState, PlaylistSaveProgress } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 function readJson<T>(filePath: string, fallback: T): T {
@@ -96,4 +96,19 @@ export function getStreamLogs(maxLines = 200): string[] {
 export function clearStreamLogs(): void {
   ensureDirectories();
   fs.writeFileSync(paths.streamLogsFile, "", "utf8");
+}
+
+export function getPlaylistSaveProgress(): PlaylistSaveProgress {
+  return readJson<PlaylistSaveProgress>(paths.playlistSaveProgressJson, {
+    active: false,
+    current: 0,
+    total: 0,
+    step: "idle",
+    videoName: "",
+    updatedAt: new Date(0).toISOString(),
+  });
+}
+
+export function savePlaylistSaveProgress(progress: PlaylistSaveProgress): void {
+  writeJson(paths.playlistSaveProgressJson, progress);
 }
