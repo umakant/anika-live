@@ -2,13 +2,13 @@ import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 
-const FOLDER = env("CLOUDINARY_FOLDER") || "anika-live/videos";
-
-let configured = false;
-
 function env(name: string): string {
   return (process.env[name] || "").trim();
 }
+
+const FOLDER = env("CLOUDINARY_FOLDER") || "anika-live/videos";
+
+let configured = false;
 
 export function isCloudinaryConfigured(): boolean {
   return Boolean(
@@ -84,14 +84,14 @@ export function createClientUploadParams(): ClientUploadParams {
   const params = { timestamp, folder: FOLDER, public_id: id };
   const signature = cloudinary.utils.api_sign_request(
     params,
-    process.env.CLOUDINARY_API_SECRET!
+    env("CLOUDINARY_API_SECRET")
   );
 
   return {
     mode: "signed",
     id,
     cloudName,
-    apiKey: process.env.CLOUDINARY_API_KEY!,
+    apiKey: env("CLOUDINARY_API_KEY"),
     timestamp,
     signature,
     folder: FOLDER,
