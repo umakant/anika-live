@@ -82,6 +82,7 @@ export interface SignedUploadParams {
   timestamp: number;
   signature: string;
   folder: string;
+  uploadPreset?: string;
 }
 
 export interface UnsignedUploadParams {
@@ -98,19 +99,18 @@ export function createClientUploadParams(): ClientUploadParams {
   const { cloudName, apiKey, apiSecret } = ensureConfigured();
   const id = uuidv4();
   const uploadPreset = env("CLOUDINARY_UPLOAD_PRESET");
+  const timestamp = Math.round(Date.now() / 1000);
+
+  const params: Record<string, string | number> = {
+    timestamp,
+    folder: FOLDER,
+    public_id: id,
+  };
 
   if (uploadPreset) {
-    return {
-      mode: "unsigned",
-      id,
-      cloudName,
-      uploadPreset,
-      folder: FOLDER,
-    };
+    params.upload_preset = uploadPreset;
   }
 
-  const timestamp = Math.round(Date.now() / 1000);
-  const params = { timestamp, folder: FOLDER, public_id: id };
   const signature = cloudinary.utils.api_sign_request(params, apiSecret);
 
   return {
@@ -121,6 +121,7 @@ export function createClientUploadParams(): ClientUploadParams {
     timestamp,
     signature,
     folder: FOLDER,
+    uploadPreset: uploadPreset || undefined,
   };
 }
 

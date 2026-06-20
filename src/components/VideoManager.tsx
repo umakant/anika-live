@@ -46,17 +46,13 @@ export function VideoManager() {
 
       const cloudForm = new FormData();
       cloudForm.append("file", file);
-
-      if (sign.mode === "unsigned") {
+      cloudForm.append("api_key", sign.apiKey);
+      cloudForm.append("timestamp", String(sign.timestamp));
+      cloudForm.append("signature", sign.signature);
+      cloudForm.append("folder", sign.folder);
+      cloudForm.append("public_id", sign.id);
+      if (sign.uploadPreset) {
         cloudForm.append("upload_preset", sign.uploadPreset);
-        cloudForm.append("folder", sign.folder);
-        cloudForm.append("public_id", sign.id);
-      } else {
-        cloudForm.append("api_key", sign.apiKey);
-        cloudForm.append("timestamp", String(sign.timestamp));
-        cloudForm.append("signature", sign.signature);
-        cloudForm.append("folder", sign.folder);
-        cloudForm.append("public_id", sign.id);
       }
 
       const cloudRes = await fetch(
@@ -109,8 +105,8 @@ export function VideoManager() {
       <Card>
         <h3 className="mb-3 text-lg font-medium">Upload MP4 Video</h3>
         <p className="mb-3 text-xs text-slate-400">
-          Videos upload directly to Cloudinary (no server size limit). Local copies are cached
-          only when building a playlist for FFmpeg streaming.
+          Videos upload directly to Cloudinary using a signed upload preset. Local copies are
+          cached only when building a playlist for FFmpeg streaming.
         </p>
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-950/40 px-6 py-10 hover:border-rose-500/50">
           <span className="mb-2 text-sm text-slate-300">
