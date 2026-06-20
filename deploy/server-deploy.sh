@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Deploy / refresh Anika Live Studio on the server with updated .env
 set -euo pipefail
 
 APP_DIR="/var/www/apps/anika-live"
@@ -25,13 +24,18 @@ git pull
 npm ci
 npm run build
 
-bash deploy/setup-cloudinary-preset.sh "$APP_DIR"
+echo "Setting up Cloudinary upload preset..."
+if node deploy/setup-cloudinary-preset.mjs; then
+  echo "Cloudinary preset OK."
+else
+  echo ""
+  echo "Preset script failed — create preset manually in Cloudinary dashboard (see instructions above)."
+  echo "Then run: pm2 restart anika-live-studio"
+fi
 
 pm2 delete anika-live-studio 2>/dev/null || true
 pm2 start deploy/ecosystem.config.js
 pm2 save
 
-echo ""
-echo "Done. App should be at http://127.0.0.1:3010"
-echo "Cloud name: dlyaexxhi"
 pm2 status | grep anika || true
+echo "Deploy complete."
