@@ -1,5 +1,6 @@
 import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 import fs from "fs";
+import { v4 as uuidv4 } from "uuid";
 
 const FOLDER = process.env.CLOUDINARY_FOLDER || "anika-live/videos";
 
@@ -37,6 +38,35 @@ export interface CloudinaryUploadResult {
   duration: number;
   bytes: number;
   format: string;
+}
+
+export interface SignedUploadParams {
+  id: string;
+  cloudName: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+}
+
+export function createSignedUploadParams(): SignedUploadParams {
+  ensureConfigured();
+  const id = uuidv4();
+  const timestamp = Math.round(Date.now() / 1000);
+  const params = { timestamp, folder: FOLDER, public_id: id };
+  const signature = cloudinary.utils.api_sign_request(
+    params,
+    process.env.CLOUDINARY_API_SECRET!
+  );
+
+  return {
+    id,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME!,
+    apiKey: process.env.CLOUDINARY_API_KEY!,
+    timestamp,
+    signature,
+    folder: FOLDER,
+  };
 }
 
 export async function uploadVideoToCloudinary(

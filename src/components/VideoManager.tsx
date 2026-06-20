@@ -5,6 +5,14 @@ import { Button, Card } from "./ui";
 import { formatBytes, formatDate, formatDuration } from "@/lib/format";
 import type { VideoRecord } from "@/lib/types";
 
+interface CloudinaryUploadResponse {
+  public_id: string;
+  secure_url: string;
+  duration?: number;
+  bytes?: number;
+  error?: { message: string };
+}
+
 export function VideoManager() {
   const [videos, setVideos] = useState<VideoRecord[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -28,13 +36,48 @@ export function VideoManager() {
     if (!file) return;
 
     setUploading(true);
-    setMessage(null);
+    setMessage("Preparing upload...");
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/videos", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      const signRes = await fetch("/api/videos/sign", { method: "POST" });
+      const sign = await signRes.json();
+      if (!signRes.ok) throw new Error(sign.error || "Failed to prepare upload");
+
+      setMessage(`Uploading ${file.name} to Cloudinary...`);
+
+      const cloudForm = new FormData();
+      cloudForm.append("file", file);
+      cloudForm.append("api_key", sign.apiKey);
+      cloudForm.append("timestamp", String(sign.timestamp));
+      cloudForm.append("signature", sign.signature);
+      cloudForm.append("folder", sign.folder);
+      cloudForm.append("public_id", sign.id);
+
+      const cloudRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${sign.cloudName}/video/upload`,
+        { method: "POST", body: cloudForm }
+      );
+      const cloudData = (await cloudRes.json()) as CloudinaryUploadResponse;
+      if (!cloudRes.ok) {
+        throw new Error(cloudData.error?.message || "Cloudinary upload failed");
+      }
+
+      setMessage("Saving video metadata...");
+
+      const completeRes = await fetch("/api/videos/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: sign.id,
+          originalName: file.name,
+          cloudinaryPublicId: cloudData.public_id,
+          cloudinaryUrl: cloudData.secure_url,
+          duration: cloudData.duration || 0,
+          size: cloudData.bytes || file.size,
+        }),
+      });
+      const completeData = await completeRes.json();
+      if (!completeRes.ok) throw new Error(completeData.error || "Failed to save video");
+
       setMessage(`Uploaded ${file.name}`);
       await loadVideos();
     } catch (err) {
@@ -59,8 +102,8 @@ export function VideoManager() {
       <Card>
         <h3 className="mb-3 text-lg font-medium">Upload MP4 Video</h3>
         <p className="mb-3 text-xs text-slate-400">
-          Videos are stored in Cloudinary. Local copies are cached only when building a playlist
-          for FFmpeg streaming.
+          Videos upload directly to Cloudinary (no server size limit). Local copies are cached
+          only when building a playlist for FFmpeg streaming.
         </p>
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-950/40 px-6 py-10 hover:border-rose-500/50">
           <span className="mb-2 text-sm text-slate-300">
@@ -75,7 +118,11 @@ export function VideoManager() {
             onChange={handleUpload}
           />
         </label>
-        {message && <p className="mt-3 text-sm text-slate-300">{message}</p>}
+        {message && (
+          <p className={`mt-3 text-sm ${message.includes("failed") || message.includes("Failed") ? "text-red-400" : "text-slate-300"}`}>
+            {message}
+          </p>
+        )}
       </Card>
 
       <Card className="overflow-x-auto">
