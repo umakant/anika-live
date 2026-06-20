@@ -46,11 +46,18 @@ export function VideoManager() {
 
       const cloudForm = new FormData();
       cloudForm.append("file", file);
-      cloudForm.append("api_key", sign.apiKey);
-      cloudForm.append("timestamp", String(sign.timestamp));
-      cloudForm.append("signature", sign.signature);
-      cloudForm.append("folder", sign.folder);
-      cloudForm.append("public_id", sign.id);
+
+      if (sign.mode === "unsigned") {
+        cloudForm.append("upload_preset", sign.uploadPreset);
+        cloudForm.append("folder", sign.folder);
+        cloudForm.append("public_id", sign.id);
+      } else {
+        cloudForm.append("api_key", sign.apiKey);
+        cloudForm.append("timestamp", String(sign.timestamp));
+        cloudForm.append("signature", sign.signature);
+        cloudForm.append("folder", sign.folder);
+        cloudForm.append("public_id", sign.id);
+      }
 
       const cloudRes = await fetch(
         `https://api.cloudinary.com/v1_1/${sign.cloudName}/video/upload`,

@@ -41,6 +41,7 @@ export interface CloudinaryUploadResult {
 }
 
 export interface SignedUploadParams {
+  mode: "signed";
   id: string;
   cloudName: string;
   apiKey: string;
@@ -49,9 +50,32 @@ export interface SignedUploadParams {
   folder: string;
 }
 
-export function createSignedUploadParams(): SignedUploadParams {
+export interface UnsignedUploadParams {
+  mode: "unsigned";
+  id: string;
+  cloudName: string;
+  uploadPreset: string;
+  folder: string;
+}
+
+export type ClientUploadParams = SignedUploadParams | UnsignedUploadParams;
+
+export function createClientUploadParams(): ClientUploadParams {
   ensureConfigured();
   const id = uuidv4();
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
+  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+
+  if (uploadPreset) {
+    return {
+      mode: "unsigned",
+      id,
+      cloudName,
+      uploadPreset,
+      folder: FOLDER,
+    };
+  }
+
   const timestamp = Math.round(Date.now() / 1000);
   const params = { timestamp, folder: FOLDER, public_id: id };
   const signature = cloudinary.utils.api_sign_request(
@@ -60,8 +84,9 @@ export function createSignedUploadParams(): SignedUploadParams {
   );
 
   return {
+    mode: "signed",
     id,
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME!,
+    cloudName,
     apiKey: process.env.CLOUDINARY_API_KEY!,
     timestamp,
     signature,
