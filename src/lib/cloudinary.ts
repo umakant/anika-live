@@ -10,30 +10,60 @@ const FOLDER = env("CLOUDINARY_FOLDER") || "anika-live/videos";
 
 let configured = false;
 
-export function isCloudinaryConfigured(): boolean {
-  return Boolean(
-    env("CLOUDINARY_CLOUD_NAME") &&
-      env("CLOUDINARY_API_KEY") &&
-      env("CLOUDINARY_API_SECRET")
-  );
+interface CloudinaryCredentials {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
 }
 
-function ensureConfigured(): void {
-  if (!isCloudinaryConfigured()) {
+function parseCloudinaryUrl(url: string): CloudinaryCredentials | null {
+  const match = url.match(/^cloudinary:\/\/([^:]+):([^@]+)@(.+)$/);
+  if (!match) return null;
+  return {
+    apiKey: match[1],
+    apiSecret: match[2],
+    cloudName: match[3],
+  };
+}
+
+function getCredentials(): CloudinaryCredentials | null {
+  const url = env("CLOUDINARY_URL");
+  if (url) {
+    const parsed = parseCloudinaryUrl(url);
+    if (parsed) return parsed;
+  }
+
+  const cloudName = env("CLOUDINARY_CLOUD_NAME");
+  const apiKey = env("CLOUDINARY_API_KEY");
+  const apiSecret = env("CLOUDINARY_API_SECRET");
+  if (!cloudName || !apiKey || !apiSecret) return null;
+
+  return { cloudName, apiKey, apiSecret };
+}
+
+export function isCloudinaryConfigured(): boolean {
+  return getCredentials() !== null;
+}
+
+function ensureConfigured(): CloudinaryCredentials {
+  const credentials = getCredentials();
+  if (!credentials) {
     throw new Error(
-      "Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET."
+      "Cloudinary is not configured. Set CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET."
     );
   }
 
   if (!configured) {
     cloudinary.config({
-      cloud_name: env("CLOUDINARY_CLOUD_NAME"),
-      api_key: env("CLOUDINARY_API_KEY"),
-      api_secret: env("CLOUDINARY_API_SECRET"),
+      cloud_name: credentials.cloudName,
+      api_key: credentials.apiKey,
+      api_secret: credentials.apiSecret,
       secure: true,
     });
     configured = true;
   }
+
+  return credentials;
 }
 
 export interface CloudinaryUploadResult {
@@ -65,9 +95,8 @@ export interface UnsignedUploadParams {
 export type ClientUploadParams = SignedUploadParams | UnsignedUploadParams;
 
 export function createClientUploadParams(): ClientUploadParams {
-  ensureConfigured();
+  const { cloudName, apiKey, apiSecret } = ensureConfigured();
   const id = uuidv4();
-  const cloudName = env("CLOUDINARY_CLOUD_NAME");
   const uploadPreset = env("CLOUDINARY_UPLOAD_PRESET");
 
   if (uploadPreset) {
@@ -82,16 +111,13 @@ export function createClientUploadParams(): ClientUploadParams {
 
   const timestamp = Math.round(Date.now() / 1000);
   const params = { timestamp, folder: FOLDER, public_id: id };
-  const signature = cloudinary.utils.api_sign_request(
-    params,
-    env("CLOUDINARY_API_SECRET")
-  );
+  const signature = cloudinary.utils.api_sign_request(params, apiSecret);
 
   return {
     mode: "signed",
     id,
     cloudName,
-    apiKey: env("CLOUDINARY_API_KEY"),
+    apiKey,
     timestamp,
     signature,
     folder: FOLDER,
