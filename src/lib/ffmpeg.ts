@@ -8,12 +8,30 @@ import type { StreamSettings, VideoRecord } from "./types";
 
 const execFileAsync = promisify(execFile);
 
+const SYSTEM_FFMPEG = "/usr/bin/ffmpeg";
+const SYSTEM_FFPROBE = "/usr/bin/ffprobe";
+
 export function getFfmpegPath(): string {
-  return process.env.FFMPEG_PATH || "ffmpeg";
+  if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
+  if (fs.existsSync(SYSTEM_FFMPEG)) return SYSTEM_FFMPEG;
+  return "ffmpeg";
 }
 
 export function getFfprobePath(): string {
-  return process.env.FFPROBE_PATH || "ffprobe";
+  if (process.env.FFPROBE_PATH) return process.env.FFPROBE_PATH;
+  if (fs.existsSync(SYSTEM_FFPROBE)) return SYSTEM_FFPROBE;
+  return "ffprobe";
+}
+
+export function formatFfmpegError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/snap cgroup|snap\.ffmpeg/i.test(message)) {
+    return (
+      "FFmpeg snap package cannot run under PM2. Run: sudo snap remove ffmpeg && sudo apt install -y ffmpeg, " +
+      "then add FFMPEG_PATH=/usr/bin/ffmpeg to .env and restart PM2."
+    );
+  }
+  return message;
 }
 
 export async function probeDuration(filePath: string): Promise<number> {

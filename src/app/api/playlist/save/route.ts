@@ -5,7 +5,7 @@ import {
   getVideos,
   saveVideos,
 } from "@/lib/storage";
-import { normalizeVideoRecord, writePlaylistFile } from "@/lib/ffmpeg";
+import { normalizeVideoRecord, writePlaylistFile, formatFfmpegError } from "@/lib/ffmpeg";
 import { paths } from "@/lib/paths";
 
 export const maxDuration = 600;
@@ -54,7 +54,7 @@ export async function PUT(request: NextRequest) {
       normalizedCount: normalizedPaths.length,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to save playlist";
+    const message = formatFfmpegError(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

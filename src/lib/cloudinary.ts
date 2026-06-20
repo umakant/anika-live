@@ -1,4 +1,4 @@
-import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
