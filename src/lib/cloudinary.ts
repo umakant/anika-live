@@ -2,15 +2,19 @@ import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 
-const FOLDER = process.env.CLOUDINARY_FOLDER || "anika-live/videos";
+const FOLDER = env("CLOUDINARY_FOLDER") || "anika-live/videos";
 
 let configured = false;
 
+function env(name: string): string {
+  return (process.env[name] || "").trim();
+}
+
 export function isCloudinaryConfigured(): boolean {
   return Boolean(
-    process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET
+    env("CLOUDINARY_CLOUD_NAME") &&
+      env("CLOUDINARY_API_KEY") &&
+      env("CLOUDINARY_API_SECRET")
   );
 }
 
@@ -23,9 +27,9 @@ function ensureConfigured(): void {
 
   if (!configured) {
     cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
+      cloud_name: env("CLOUDINARY_CLOUD_NAME"),
+      api_key: env("CLOUDINARY_API_KEY"),
+      api_secret: env("CLOUDINARY_API_SECRET"),
       secure: true,
     });
     configured = true;
@@ -63,8 +67,8 @@ export type ClientUploadParams = SignedUploadParams | UnsignedUploadParams;
 export function createClientUploadParams(): ClientUploadParams {
   ensureConfigured();
   const id = uuidv4();
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
-  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+  const cloudName = env("CLOUDINARY_CLOUD_NAME");
+  const uploadPreset = env("CLOUDINARY_UPLOAD_PRESET");
 
   if (uploadPreset) {
     return {
